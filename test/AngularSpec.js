@@ -24,6 +24,16 @@ describe('angular', function() {
       expect(copy([], arr)).toBe(arr);
     });
 
+    it("should preserve prototype chaining", function() {
+      var GrandParentProto = {};
+      var ParentProto = Object.create(GrandParentProto);
+      var obj = Object.create(ParentProto);
+      expect(ParentProto.isPrototypeOf(copy(obj))).toBe(true);
+      expect(GrandParentProto.isPrototypeOf(copy(obj))).toBe(true);
+      var Foo = function() {};
+      expect(copy(new Foo()) instanceof Foo).toBe(true);
+    });
+
     it("should copy Date", function() {
       var date = new Date(123);
       expect(copy(date) instanceof Date).toBeTruthy();
@@ -470,6 +480,13 @@ describe('angular', function() {
       expect(parseKeyValue('flag1&flag1=value&flag1=value2&flag1')).
       toEqual({flag1: [true,'value','value2',true]});
     });
+
+
+    it('should ignore properties higher in the prototype chain', function() {
+      expect(parseKeyValue('toString=123')).toEqual({
+        'toString': '123'
+      });
+    });
   });
 
   describe('toKeyValue', function() {
@@ -886,6 +903,22 @@ describe('angular', function() {
   });
 
 
+  describe('isWindow', function () {
+    it('should return true for the Window object', function() {
+      expect(isWindow(window)).toBe(true);
+    });
+
+    it('should return false for any object that is not a Window', function() {
+      expect(isWindow([])).toBe(false);
+      expect(isWindow('')).toBeFalsy();
+      expect(isWindow(23)).toBe(false);
+      expect(isWindow({})).toBe(false);
+      expect(isWindow(new Date())).toBe(false);
+      expect(isWindow(document)).toBe(false);
+    });
+  });
+
+
   describe('compile', function() {
     it('should link to existing node and create scope', inject(function($rootScope, $compile) {
       var template = angular.element('<div>{{greeting = "hello world"}}</div>');
@@ -935,7 +968,7 @@ describe('angular', function() {
       var div = jqLite('<div xmlns:ngtest="http://angularjs.org/">' +
                          '<ngtest:foo ngtest:attr="bar"></ngtest:foo>' +
                        '</div>')[0];
-      expect(nodeName_(div.childNodes[0])).toBe('NGTEST:FOO');
+      expect(nodeName_(div.childNodes[0])).toBe('ngtest:foo');
       expect(div.childNodes[0].getAttribute('ngtest:attr')).toBe('bar');
     });
 
@@ -944,7 +977,7 @@ describe('angular', function() {
         var div = jqLite('<div xmlns:ngtest="http://angularjs.org/">' +
                            '<ngtest:foo ngtest:attr="bar"></ng-test>' +
                          '</div>')[0];
-        expect(nodeName_(div.childNodes[0])).toBe('NGTEST:FOO');
+        expect(nodeName_(div.childNodes[0])).toBe('ngtest:foo');
         expect(div.childNodes[0].getAttribute('ngtest:attr')).toBe('bar');
       });
     }
@@ -958,7 +991,7 @@ describe('angular', function() {
 
       while(count--) {
         var current = nextUid();
-        expect(current.match(/[\d\w]+/)).toBeTruthy();
+        expect(typeof current).toBe('number');
         expect(seen[current]).toBeFalsy();
         seen[current] = true;
       }

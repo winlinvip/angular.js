@@ -386,6 +386,23 @@ describe('jqLite', function() {
       selected.removeData('prop2');
     });
 
+
+    it('should not add to the cache if the node is a comment or text node', function() {
+      var calcCacheSize = function() {
+        var count = 0;
+        for (var k in jqLite.cache) { ++count; }
+        return count;
+      };
+
+      var nodes = jqLite('<!-- some comment --> and some text');
+      expect(calcCacheSize()).toEqual(0);
+      nodes.data('someKey');
+      expect(calcCacheSize()).toEqual(0);
+      nodes.data('someKey', 'someValue');
+      expect(calcCacheSize()).toEqual(0);
+    });
+
+
     it('should emit $destroy event if element removed via remove()', function() {
       var log = '';
       var element = jqLite(a);
@@ -881,6 +898,12 @@ describe('jqLite', function() {
       expect(element.text('xyz') == element).toBeTruthy();
       expect(element.text()).toEqual('xyzxyz');
     });
+
+    it('should return text only for element or text nodes', function() {
+      expect(jqLite('<div>foo</div>').text()).toBe('foo');
+      expect(jqLite('<div>foo</div>').contents().eq(0).text()).toBe('foo');
+      expect(jqLite(document.createComment('foo')).text()).toBe('');
+    });
   });
 
 
@@ -963,6 +986,8 @@ describe('jqLite', function() {
         },
         detachEvent: noop
       };
+      window.window = window;
+
       var log;
       var jWindow = jqLite(window).on('hashchange', function() {
         log = 'works!';
@@ -983,6 +1008,16 @@ describe('jqLite', function() {
       expect(log).toEqual('click on: A;');
       browserTrigger(b, 'click');
       expect(log).toEqual('click on: A;click on: B;');
+    });
+
+    it('should not bind to comment or text nodes', function() {
+      var nodes = jqLite('<!-- some comment -->Some text');
+      var someEventHandler = jasmine.createSpy('someEventHandler');
+
+      nodes.on('someEvent', someEventHandler);
+      nodes.triggerHandler('someEvent');
+
+      expect(someEventHandler).not.toHaveBeenCalled();
     });
 
     it('should bind to all events separated by space', function() {
@@ -1654,6 +1689,20 @@ describe('jqLite', function() {
       element.triggerHandler('click', [{hello: "world"}]);
       data = pokeSpy.mostRecentCall.args[1];
       expect(data.hello).toBe("world");
+    });
+
+    it('should mark event as prevented if preventDefault is called', function() {
+      var element = jqLite('<a>poke</a>'),
+          pokeSpy = jasmine.createSpy('poke'),
+          event;
+
+      element.on('click', pokeSpy);
+      element.triggerHandler('click');
+      event = pokeSpy.mostRecentCall.args[0];
+
+      expect(event.isDefaultPrevented()).toBe(false);
+      event.preventDefault();
+      expect(event.isDefaultPrevented()).toBe(true);
     });
   });
 
